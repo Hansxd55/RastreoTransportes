@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:AppChofer.ViewModels"
+             x:Class="AppChofer.Views.MainView"
+             x:DataType="vm:MainViewModel">
+  
+  <Design.DataContext>
+    <vm:MainViewModel />
+  </Design.DataContext>
+
+  <Grid Background="#121212" RowDefinitions="Auto, *, Auto">
+      
+      <!-- Encabezado -->
+      <TextBlock Grid.Row="0" 
+                 Text="Transporte San Pedro" 
+                 FontSize="22" 
+                 FontWeight="Bold" 
+                 Foreground="White" 
+                 HorizontalAlignment="Center" 
+                 Margin="20"/>
+      
+      <!-- Botón Gigante de Acción -->
+      <Button x:Name="BtnRuta"
+              Click="OnBtnRutaClick"
+              Grid.Row="1" 
+              Content="INICIAR RUTA" 
+              FontSize="40" 
+              FontWeight="Black" 
+              Background="#2E8B57" 
+              Foreground="White"
+              HorizontalAlignment="Stretch" 
+              VerticalAlignment="Stretch" 
+              HorizontalContentAlignment="Center"
+              VerticalContentAlignment="Center"
+              Margin="30"/>
+
+      <!-- Etiqueta del GPS -->
+      <TextBlock x:Name="TxtGps"
+                 Grid.Row="2"
+                 Text="Ruta detenida. GPS inactivo."
+                 FontSize="18"
+                 Foreground="LightGray"
+                 HorizontalAlignment="Center"
+                 Margin="15"/>
+  </Grid>
+</UserControl>

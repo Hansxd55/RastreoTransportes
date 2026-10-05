@@ -1,0 +1,10 @@
+@TransporteAPI_HostAddress = http://localhost:5173
+
+GET {{TransporteAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+### Simular el envío de GPS del chofer 1
+POST http://localhost:5173/actualizar-ubicacion?idUnidad=1&latitud=25.7616&longitud=-102.9839
+
