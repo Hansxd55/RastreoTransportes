@@ -1,46 +1,82 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:AppChofer.ViewModels"
+             xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
              x:Class="AppChofer.Views.MainView"
-             x:DataType="vm:MainViewModel">
+             x:DataType="vm:MainViewModel"
+             Background="#141414">
   
   <Design.DataContext>
     <vm:MainViewModel />
   </Design.DataContext>
 
-  <Grid Background="#121212" RowDefinitions="Auto, *, Auto">
+  <!-- Dividimos la pantalla: Un encabezado general arriba y las pestañas abajo -->
+  <Grid RowDefinitions="Auto, *">
       
-      <!-- Encabezado -->
-      <TextBlock Grid.Row="0" 
-                 Text="Transporte San Pedro" 
-                 FontSize="22" 
-                 FontWeight="Bold" 
-                 Foreground="White" 
-                 HorizontalAlignment="Center" 
-                 Margin="20"/>
-      
-      <!-- Botón Gigante de Acción -->
-      <Button x:Name="BtnRuta"
-              Click="OnBtnRutaClick"
-              Grid.Row="1" 
-              Content="INICIAR RUTA" 
-              FontSize="40" 
-              FontWeight="Black" 
-              Background="#2E8B57" 
-              Foreground="White"
-              HorizontalAlignment="Stretch" 
-              VerticalAlignment="Stretch" 
-              HorizontalContentAlignment="Center"
-              VerticalContentAlignment="Center"
-              Margin="30"/>
+      <!-- Encabezado Principal (Aparece en ambas pestañas) -->
+      <Border Grid.Row="0" Background="#1E1E1E" Padding="20,15" BoxShadow="0 4 10 0 #000000">
+          <TextBlock Text="🚍 Transporte San Pedro" 
+                     FontSize="24" 
+                     FontWeight="Black" 
+                     Foreground="White" 
+                     HorizontalAlignment="Center"/>
+      </Border>
 
-      <!-- Etiqueta del GPS -->
-      <TextBlock x:Name="TxtGps"
-                 Grid.Row="2"
-                 Text="Ruta detenida. GPS inactivo."
-                 FontSize="18"
-                 Foreground="LightGray"
-                 HorizontalAlignment="Center"
-                 Margin="15"/>
+      <!-- El TabControl modificado con mejor tipografía y márgenes -->
+      <TabControl Grid.Row="1" Margin="10">
+          
+          <!-- PESTAÑA 1: VISTA DEL USUARIO -->
+          <TabItem Header="📍 Pasajero (Mapa)" FontSize="16" FontWeight="SemiBold">
+              <!-- Metimos el mapa en una tarjeta con bordes redondeados -->
+              <Border Background="#1E1E1E" CornerRadius="12" Margin="5" Padding="5" ClipToBounds="True">
+                  <mapsui:MapControl x:Name="MapaControl" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+              </Border>
+          </TabItem>
+
+        <!-- PESTAÑA 2: VISTA DEL CHOFER -->
+          <TabItem Header="🚌 Conductor (GPS)" FontSize="16" FontWeight="SemiBold">
+              <Border Background="#1E1E1E" CornerRadius="12" Margin="5" Padding="15">
+                  
+                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="40">
+                      
+                      <!-- Redujimos un poco la fuente y agregamos TextWrapping para que nunca se recorte -->
+                      <TextBlock Text="Panel de Control del Chofer" 
+                                 FontSize="20" 
+                                 FontWeight="Bold" 
+                                 Foreground="White" 
+                                 HorizontalAlignment="Center"
+                                 TextAlignment="Center"
+                                 TextWrapping="Wrap"/>
+                      
+                      <!-- El botón ahora mide 300px para que respire con los bordes del teléfono -->
+                      <Button x:Name="BtnRuta"
+                              Click="OnBtnRutaClick"
+                              Content="INICIAR RUTA" 
+                              FontSize="26" 
+                              FontWeight="Black" 
+                              Background="#2E8B57" 
+                              Foreground="White"
+                              Width="300" Height="70"
+                              CornerRadius="35"
+                              HorizontalAlignment="Center" 
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center"/>
+
+                      <!-- ¡Corregido! Bajamos el Width de 450 a 300 -->
+                      <Border Background="#2A2A2A" CornerRadius="8" Padding="15" Width="300">
+                          <TextBlock x:Name="TxtGps"
+                                     Text="Ruta detenida. GPS inactivo."
+                                     FontSize="16"
+                                     Foreground="#B0B0B0"
+                                     HorizontalAlignment="Center"
+                                     TextAlignment="Center"
+                                     TextWrapping="Wrap"/>
+                      </Border>
+
+                  </StackPanel>
+              </Border>
+          </TabItem>
+          
+      </TabControl>
   </Grid>
 </UserControl>

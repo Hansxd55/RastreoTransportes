@@ -5,6 +5,10 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Mapsui.Projections;
+using Mapsui.Layers;
+using Mapsui.Providers;
+using Mapsui.Styles;
 
 namespace AppChofer.Views;
 
@@ -14,27 +18,53 @@ public partial class MainView : UserControl
     private DispatcherTimer _gpsTimer;
     private double _latitudActual = 25.7543; 
     private double _longitudActual = -102.9839;
-
-    // 1. Creamos el "cartero" (HttpClient) que enviará los datos
     private static readonly HttpClient _httpClient = new HttpClient();
+
+    // 1. Declaramos el pin como variable para poder moverlo más adelante
+    private PointFeature _pinTransporte;
 
     public MainView()
     {
         InitializeComponent();
+        
+        MapaControl.Map = new Mapsui.Map();
+        MapaControl.Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+        
+        var (x, y) = SphericalMercator.FromLonLat(_longitudActual, _latitudActual);
+        var centroSanPedro = new Mapsui.MPoint(x, y);
+        MapaControl.Map.Navigator.CenterOnAndZoomTo(centroSanPedro, 15);
+        
+        // 2. CORRECCIÓN: Así se crea el pin rojo en la versión 5.1.0
+        _pinTransporte = new PointFeature(new Mapsui.MPoint(x, y));
+        _pinTransporte.Styles.Add(new SymbolStyle 
+        { 
+            Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.Red),
+            SymbolScale = 0.8 
+        });
+
+        // 3. Metemos el pin en una capa transparente y la agregamos al mapa
+        var capaPines = new MemoryLayer
+        {
+            Name = "Transportes",
+            Features = new[] { _pinTransporte },
+            Style = null // Esto asegura que respete el color rojo que le pusimos arriba
+        };
+        MapaControl.Map.Layers.Add(capaPines);
         
         _gpsTimer = new DispatcherTimer();
         _gpsTimer.Interval = TimeSpan.FromSeconds(3);
         _gpsTimer.Tick += OnGpsTimerTick;
     }
 
-    private void OnBtnRutaClick(object sender, RoutedEventArgs e)
+    // CORRECCIÓN: Agregamos object? para quitar la advertencia amarilla
+    private void OnBtnRutaClick(object? sender, RoutedEventArgs e)
     {
         _enRuta = !_enRuta; 
 
         if (_enRuta)
         {
             BtnRuta.Content = "TERMINAR RUTA";
-            BtnRuta.Background = Brushes.DarkRed;
+            BtnRuta.Background = Avalonia.Media.Brushes.DarkRed;
             TxtGps.Text = "Buscando señal GPS y conectando...";
             _gpsTimer.Start(); 
         }
@@ -47,14 +77,22 @@ public partial class MainView : UserControl
         }
     }
 
-    // 2. Agregamos 'async' para que el envío por internet no congele la pantalla del chofer
-    private async void OnGpsTimerTick(object sender, EventArgs e)
+    // CORRECCIÓN: Agregamos object? para quitar la advertencia amarilla
+    private async void OnGpsTimerTick(object? sender, EventArgs e)
     {
         Random rnd = new Random();
+        // Simulamos el movimiento del camión
         _latitudActual += (rnd.NextDouble() - 0.5) * 0.0005; 
         _longitudActual += (rnd.NextDouble() - 0.5) * 0.0005;
 
-        // 3. Preparamos el paquete JSON (usamos CultureInfo para que los decimales usen punto y no coma)
+        // 4. Actualizamos la posición del pin visualmente
+        var (nuevoX, nuevoY) = SphericalMercator.FromLonLat(_longitudActual, _latitudActual);
+        _pinTransporte.Point.X = nuevoX;
+        _pinTransporte.Point.Y = nuevoY;
+        
+        // Le ordenamos al lienzo del mapa que se vuelva a dibujar para reflejar el movimiento
+        MapaControl.Refresh();
+
         string latStr = _latitudActual.ToString(System.Globalization.CultureInfo.InvariantCulture);
         string lonStr = _longitudActual.ToString(System.Globalization.CultureInfo.InvariantCulture);
         string jsonPayload = $"{{\"unidad\": \"Unidad-01\", \"latitud\": {latStr}, \"longitud\": {lonStr}}}";
@@ -63,10 +101,8 @@ public partial class MainView : UserControl
 
         try
         {
-            // 4. Intentamos enviar el paquete a la API (usamos localhost en el puerto 5000 por ahora)
             TxtGps.Text = $"GPS - Lat: {_latitudActual:F5} | Lon: {_longitudActual:F5} (Enviando...)";
-            
-            HttpResponseMessage respuesta = await _httpClient.PostAsync("http://localhost:5000/api/coordenadas", contenido);
+            HttpResponseMessage respuesta = await _httpClient.PostAsync("http://127.0.0.1:5000/api/coordenadas", contenido);
             
             if (respuesta.IsSuccessStatusCode)
             {
@@ -75,7 +111,6 @@ public partial class MainView : UserControl
         }
         catch (Exception)
         {
-            // 5. Si la API está apagada o no hay internet, mostramos un error sin que la app crashee
             TxtGps.Text = $"GPS - Lat: {_latitudActual:F5} | Lon: {_longitudActual:F5} (Servidor apagado)";
         }
     }
