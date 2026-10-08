@@ -1,13 +1,13 @@
 using System;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json.Nodes;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Mapsui.Projections;
 using Mapsui.Layers;
-using Mapsui.Providers;
 using Mapsui.Styles;
 
 namespace AppChofer.Views;
@@ -15,48 +15,82 @@ namespace AppChofer.Views;
 public partial class MainView : UserControl
 {
     private bool _enRuta = false;
-    private DispatcherTimer _gpsTimer;
-    private double _latitudActual = 25.7543; 
-    private double _longitudActual = -102.9839;
+    
+    // Temporizadores
+    private DispatcherTimer _choferTimer;
+    private DispatcherTimer _pasajeroTimer;
+    
+    // Coordenadas simuladas del chofer
+    private double _latitudChofer = 25.7543; 
+    private double _longitudChofer = -102.9839;
+    
     private static readonly HttpClient _httpClient = new HttpClient();
-
-    // 1. Declaramos el pin como variable para poder moverlo más adelante
     private PointFeature _pinTransporte;
 
     public MainView()
     {
         InitializeComponent();
         
+        // --- 1. CONFIGURACIÓN DEL MAPA ---
         MapaControl.Map = new Mapsui.Map();
         MapaControl.Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
         
-        var (x, y) = SphericalMercator.FromLonLat(_longitudActual, _latitudActual);
+        var (x, y) = SphericalMercator.FromLonLat(-102.9839, 25.7543);
         var centroSanPedro = new Mapsui.MPoint(x, y);
         MapaControl.Map.Navigator.CenterOnAndZoomTo(centroSanPedro, 15);
         
-        // 2. CORRECCIÓN: Así se crea el pin rojo en la versión 5.1.0
         _pinTransporte = new PointFeature(new Mapsui.MPoint(x, y));
         _pinTransporte.Styles.Add(new SymbolStyle 
         { 
-            Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.Red),
+            Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.Green), 
             SymbolScale = 0.8 
         });
 
-        // 3. Metemos el pin en una capa transparente y la agregamos al mapa
         var capaPines = new MemoryLayer
         {
             Name = "Transportes",
             Features = new[] { _pinTransporte },
-            Style = null // Esto asegura que respete el color rojo que le pusimos arriba
+            Style = null 
         };
         MapaControl.Map.Layers.Add(capaPines);
         
-        _gpsTimer = new DispatcherTimer();
-        _gpsTimer.Interval = TimeSpan.FromSeconds(3);
-        _gpsTimer.Tick += OnGpsTimerTick;
+        // --- 2. CONFIGURACIÓN DE TIMERS ---
+        _choferTimer = new DispatcherTimer();
+        _choferTimer.Interval = TimeSpan.FromSeconds(3);
+        _choferTimer.Tick += OnChoferTimerTick;
+
+        _pasajeroTimer = new DispatcherTimer();
+        _pasajeroTimer.Interval = TimeSpan.FromSeconds(2);
+        _pasajeroTimer.Tick += OnPasajeroTimerTick;
+        _pasajeroTimer.Start(); 
     }
 
-    // CORRECCIÓN: Agregamos object? para quitar la advertencia amarilla
+    // --- 3. LÓGICA DE LAS PESTAÑAS (TABS) ---
+    private void OnTabChoferClick(object? sender, RoutedEventArgs e)
+    {
+        PanelUsuario.IsVisible = false;
+        PanelChofer.IsVisible = true;
+        
+        BtnTabChofer.Background = SolidColorBrush.Parse("#FFFFFF");
+        BtnTabUsuario.Background = SolidColorBrush.Parse("Transparent");
+        
+        TxtTitulo.Text = "PANEL DE CONTROL";
+        TxtSubtitulo.Text = "Transmisión GPS";
+    }
+
+    private void OnTabUsuarioClick(object? sender, RoutedEventArgs e)
+    {
+        PanelUsuario.IsVisible = true;
+        PanelChofer.IsVisible = false;
+        
+        BtnTabUsuario.Background = SolidColorBrush.Parse("#FFFFFF");
+        BtnTabChofer.Background = SolidColorBrush.Parse("Transparent");
+        
+        TxtTitulo.Text = "UNIDAD EN CAMINO";
+        TxtSubtitulo.Text = "Sigue tu ruta";
+    }
+
+    // --- 4. LÓGICA DEL CHOFER ---
     private void OnBtnRutaClick(object? sender, RoutedEventArgs e)
     {
         _enRuta = !_enRuta; 
@@ -65,53 +99,69 @@ public partial class MainView : UserControl
         {
             BtnRuta.Content = "TERMINAR RUTA";
             BtnRuta.Background = Avalonia.Media.Brushes.DarkRed;
-            TxtGps.Text = "Buscando señal GPS y conectando...";
-            _gpsTimer.Start(); 
+            TxtGps.Text = "Conectando al servidor...";
+            _choferTimer.Start(); 
         }
         else
         {
             BtnRuta.Content = "INICIAR RUTA";
-            BtnRuta.Background = SolidColorBrush.Parse("#2E8B57");
+            BtnRuta.Background = SolidColorBrush.Parse("#10B981");
             TxtGps.Text = "Ruta detenida. GPS inactivo.";
-            _gpsTimer.Stop(); 
+            _choferTimer.Stop(); 
         }
     }
 
-    // CORRECCIÓN: Agregamos object? para quitar la advertencia amarilla
-    private async void OnGpsTimerTick(object? sender, EventArgs e)
+    private async void OnChoferTimerTick(object? sender, EventArgs e)
     {
         Random rnd = new Random();
-        // Simulamos el movimiento del camión
-        _latitudActual += (rnd.NextDouble() - 0.5) * 0.0005; 
-        _longitudActual += (rnd.NextDouble() - 0.5) * 0.0005;
+        _latitudChofer += (rnd.NextDouble() - 0.5) * 0.0005; 
+        _longitudChofer += (rnd.NextDouble() - 0.5) * 0.0005;
 
-        // 4. Actualizamos la posición del pin visualmente
-        var (nuevoX, nuevoY) = SphericalMercator.FromLonLat(_longitudActual, _latitudActual);
-        _pinTransporte.Point.X = nuevoX;
-        _pinTransporte.Point.Y = nuevoY;
-        
-        // Le ordenamos al lienzo del mapa que se vuelva a dibujar para reflejar el movimiento
-        MapaControl.Refresh();
-
-        string latStr = _latitudActual.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        string lonStr = _longitudActual.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string latStr = _latitudChofer.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string lonStr = _longitudChofer.ToString(System.Globalization.CultureInfo.InvariantCulture);
         string jsonPayload = $"{{\"unidad\": \"Unidad-01\", \"latitud\": {latStr}, \"longitud\": {lonStr}}}";
         
         var contenido = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
         try
         {
-            TxtGps.Text = $"GPS - Lat: {_latitudActual:F5} | Lon: {_longitudActual:F5} (Enviando...)";
-            HttpResponseMessage respuesta = await _httpClient.PostAsync("http://127.0.0.1:5000/api/coordenadas", contenido);
+            TxtGps.Text = $"Enviando... Lat: {_latitudChofer:F5}";
+            var respuesta = await _httpClient.PostAsync("http://127.0.0.1:5000/api/coordenadas", contenido);
             
             if (respuesta.IsSuccessStatusCode)
             {
-                TxtGps.Text = $"GPS - Lat: {_latitudActual:F5} | Lon: {_longitudActual:F5} (¡Enviado!)";
+                TxtGps.Text = $"Enviado OK. Lat: {_latitudChofer:F5}";
             }
         }
         catch (Exception)
         {
-            TxtGps.Text = $"GPS - Lat: {_latitudActual:F5} | Lon: {_longitudActual:F5} (Servidor apagado)";
+            TxtGps.Text = "Error: Servidor apagado.";
         }
+    }
+
+    // --- 5. LÓGICA DEL PASAJERO ---
+    private async void OnPasajeroTimerTick(object? sender, EventArgs e)
+    {
+        // Solo consume datos si el mapa está visible
+        if (!PanelUsuario.IsVisible) return;
+
+        try
+        {
+            string respuestaJson = await _httpClient.GetStringAsync("http://127.0.0.1:5000/api/coordenadas");
+            JsonNode? nodo = JsonNode.Parse(respuestaJson);
+            
+            if (nodo != null)
+            {
+                double latAPI = (double)nodo["latitud"]!;
+                double lonAPI = (double)nodo["longitud"]!;
+
+                var (nuevoX, nuevoY) = SphericalMercator.FromLonLat(lonAPI, latAPI);
+                _pinTransporte.Point.X = nuevoX;
+                _pinTransporte.Point.Y = nuevoY;
+                
+                MapaControl.Refresh();
+            }
+        }
+        catch (Exception) { }
     }
 }
