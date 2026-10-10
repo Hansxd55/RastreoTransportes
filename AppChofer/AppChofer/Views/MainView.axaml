@@ -2,12 +2,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
              x:Class="AppChofer.Views.MainView"
-             Background="#555555">
+             Background="#535353">
 
     <Grid RowDefinitions="Auto, Auto, *">
         
         <!-- 1. BOTONES SELECTORES (TABS) -->
-        <Border Grid.Row="0" Margin="20,20,20,5" Background="#ffffff" CornerRadius="20" Padding="4">
+        <Border Grid.Row="0" Margin="20,20,20,5" Background="#F3F4F6" CornerRadius="20" Padding="4">
             <Grid ColumnDefinitions="*,*">
                 <Button Name="BtnTabChofer" Grid.Column="0" Click="OnTabChoferClick" Background="Transparent" CornerRadius="16" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10">
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -31,43 +31,87 @@
             <TextBlock Name="TxtSubtitulo" Text="Sigue tu ruta" FontSize="28" FontWeight="Black" Foreground="#ffffff" Margin="0,2,0,0"/>
         </StackPanel>
 
-        <!-- 3. CONTENEDOR DE VISTAS (Ajustado para no abarcar toda la pantalla) -->
-        <!-- VerticalAlignment="Top" evita que se estire hacia abajo -->
+        <!-- 3. CONTENEDOR DE VISTAS -->
         <Grid Grid.Row="2" Margin="20,10,20,40" VerticalAlignment="Top">
             
-            <!-- VISTA 1: PASAJERO (Mapa Limpio y con altura controlada) -->
+            <!-- VISTA 1: PASAJERO (Mapa Limpio) -->
             <Border Name="PanelUsuario" IsVisible="True" CornerRadius="25" ClipToBounds="True" Background="#E5E7EB" Height="420">
-                <!-- Solo el mapa, sin tarjetas flotantes -->
                 <mapsui:MapControl Name="MapaControl" />
             </Border>
 
-            <!-- VISTA 2: CHOFER (Panel oscuro, misma altura para mantener proporción) -->
+            <!-- VISTA 2: CHOFER (Panel oscuro protegido) -->
             <Border Name="PanelChofer" IsVisible="False" Background="#18181B" CornerRadius="25" Padding="25" Height="420">
-                <StackPanel VerticalAlignment="Center" Spacing="25">
-                    <TextBlock Text="PANEL DE TRANSMISIÓN GPS" Foreground="#9CA3AF" FontSize="12" FontWeight="Bold" LetterSpacing="1" HorizontalAlignment="Center"/>
-                    
-                    <Button Name="BtnRuta" 
-                            Content="INICIAR RUTA" 
-                            Click="OnBtnRutaClick"
-                            HorizontalAlignment="Stretch" 
-                            HorizontalContentAlignment="Center"
-                            Background="#10B981" 
-                            Foreground="White" 
-                            FontWeight="Bold" 
-                            FontSize="18" 
-                            Padding="20" 
-                            CornerRadius="15"/>
+                <Grid>
+                    <!-- Contenido real del chofer -->
+                    <StackPanel Name="ContenidoChofer" IsVisible="False" VerticalAlignment="Center" Spacing="25">
+                        <TextBlock Text="PANEL DE TRANSMISIÓN GPS" Foreground="#9CA3AF" FontSize="12" FontWeight="Bold" LetterSpacing="1" HorizontalAlignment="Center"/>
+                        
+                        <Button Name="BtnRuta" 
+                                Content="INICIAR RUTA" 
+                                Click="OnBtnRutaClick"
+                                HorizontalAlignment="Stretch" 
+                                HorizontalContentAlignment="Center"
+                                Background="#10B981" 
+                                Foreground="White" 
+                                FontWeight="Bold" 
+                                FontSize="18" 
+                                Padding="20" 
+                                CornerRadius="15"/>
+                                
+                        <Border Background="#27272A" CornerRadius="12" Padding="15">
+                            <TextBlock Name="TxtGps" 
+                                       Text="Ruta detenida. GPS inactivo." 
+                                       Foreground="#B4F400" 
+                                       HorizontalAlignment="Center" 
+                                       FontSize="12" 
+                                       FontFamily="Monospace"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- CAPA PROTECTORA DE ADVERTENCIA Y PIN -->
+                    <Border Name="CapaPin" Background="#CC18181B" CornerRadius="20" Padding="20" VerticalAlignment="Center">
+                        <StackPanel Spacing="15" VerticalAlignment="Center">
+                            <TextBlock Text="🔒 ACCESO RESTRINGIDO" 
+                                       Foreground="#EF4444" 
+                                       FontWeight="Black" 
+                                       FontSize="14" 
+                                       HorizontalAlignment="Center"/>
                             
-                    <Border Background="#27272A" CornerRadius="12" Padding="15">
-                        <TextBlock Name="TxtGps" 
-                                   Text="Ruta detenida. GPS inactivo." 
-                                   Foreground="#B4F400" 
-                                   HorizontalAlignment="Center" 
-                                   FontSize="12" 
-                                   FontFamily="Monospace"
-                                   TextWrapping="Wrap"/>
+                            <TextBlock Text="Esta opción solo está disponible para el conductor del transporte, en caso de serlo ponga el pin que se le dió." 
+                                       Foreground="#D1D5DB" 
+                                       FontSize="12" 
+                                       TextWrapping="Wrap" 
+                                       TextAlignment="Center"/>
+                            
+                            <TextBox Name="TxtBoxPin" 
+                                     Watermark="Ingrese el PIN" 
+                                     PasswordChar="*" 
+                                     MaxLength="20"
+                                     HorizontalContentAlignment="Center"
+                                     Background="#27272A"
+                                     Foreground="White"
+                                     CornerRadius="8"
+                                     Padding="10"/>
+                            
+                            <Button Content="VERIFICAR PIN" 
+                                    Click="OnVerificarPinClick"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Background="#3B82F6"
+                                    Foreground="White"
+                                    FontWeight="Bold"
+                                    CornerRadius="8"
+                                    Padding="10"/>
+                            
+                            <TextBlock Name="TxtErrorPin" 
+                                       Text="" 
+                                       Foreground="#EF4444" 
+                                       FontSize="11" 
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
                     </Border>
-                </StackPanel>
+                </Grid>
             </Border>
             
         </Grid>
