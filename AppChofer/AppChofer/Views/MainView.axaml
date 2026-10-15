@@ -28,7 +28,21 @@
         <!-- 2. TÍTULOS DINÁMICOS -->
         <StackPanel Grid.Row="1" Margin="20,15,20,10">
             <TextBlock Name="TxtTitulo" Text="UNIDAD EN CAMINO" Foreground="#84CC16" FontWeight="Bold" FontSize="10" LetterSpacing="1.5"/>
-            <TextBlock Name="TxtSubtitulo" Text="Sigue tu ruta" FontSize="28" FontWeight="Black" Foreground="#ffffff" Margin="0,2,0,0"/>
+            <!-- Contenedor elegante para el estado del GPS -->
+        <Border Background="#2C2C2C" 
+                CornerRadius="10" 
+                Padding="15,8" 
+                Margin="0,10,0,15" 
+                HorizontalAlignment="Center"
+                BoxShadow="0 4 8 0 #40000000">
+            
+            <TextBlock Name="TxtSubtitulo" 
+                       Text="Iniciando red..." 
+                       FontSize="14" 
+                       FontWeight="SemiBold" 
+                       Foreground="#10B981" 
+                       TextAlignment="Center"/>
+        </Border>
         </StackPanel>
 
         <!-- 3. CONTENEDOR DE VISTAS -->
