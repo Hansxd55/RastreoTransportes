@@ -28,30 +28,11 @@ app.UseCors("PermitirTodo");
 // --- ENDPOINT PARA EL CHOFER (GUARDA LA UBICACIÓN) ---
 app.MapPost("/api/coordenadas", async (UbicacionChofer ubicacion, IHubContext<RastreoHub> hubContext) =>
 {
-    Console.WriteLine($"[GUARDANDO EN BD] Unidad: {ubicacion.Unidad} | Lat: {ubicacion.Latitud} | Lon: {ubicacion.Longitud}");
+    // 1. Imprimimos en consola para confirmar que la laptop recibió el dato
+    Console.WriteLine($"[SIGNALR ENVIANDO] Unidad: {ubicacion.Unidad} | Lat: {ubicacion.Latitud} | Lon: {ubicacion.Longitud}");
 
-    try
-    {
-        using var connection = new MySqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        using var command = new MySqlCommand(
-            "INSERT INTO Coordenadas_GPS (id_unidad, latitud, longitud, velocidad, timestamp) VALUES (@id_unidad, @lat, @lon, 0, NOW());", 
-            connection);
-        
-        command.Parameters.AddWithValue("@id_unidad", 1); 
-        command.Parameters.AddWithValue("@lat", ubicacion.Latitud);
-        command.Parameters.AddWithValue("@lon", ubicacion.Longitud);
-
-        await command.ExecuteNonQueryAsync();
-
-        // Avisamos a todos los clientes conectados al Hub (SignalR)
-        await hubContext.Clients.All.SendAsync("RecibirUbicacion", ubicacion);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error: {ex.Message}");
-    }
+    // 2. Rebotamos la coordenada INMEDIATAMENTE a la app del pasajero
+    await hubContext.Clients.All.SendAsync("RecibirUbicacion", ubicacion);
 
     return Results.Ok();
 });

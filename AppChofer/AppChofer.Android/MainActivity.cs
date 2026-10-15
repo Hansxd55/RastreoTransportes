@@ -2,17 +2,12 @@
 using Android.Content.PM;
 using Avalonia;
 using Avalonia.Android;
-using Android.OS;       // Necesario para Bundle
-using Android.Runtime;  // Necesario para GeneratedEnum
+using Android.OS;       
+using Android.Runtime;  
 
 namespace AppChofer.Android
 {
-    [Activity(
-        Label = "AppChofer.Android",
-        Theme = "@style/MyTheme.NoActionBar",
-        Icon = "@drawable/icon",
-        MainLauncher = true,
-        ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
+    [Activity(Label = "iBus", Icon = "@drawable/Icon", Theme = "@style/Theme.AppCompat.NoActionBar", MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation)]
     public class MainActivity : AvaloniaMainActivity<App>
     {
         protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
@@ -21,19 +16,17 @@ namespace AppChofer.Android
                 .WithInterFont();
         }
 
-        protected override void OnCreate(Bundle savedInstanceState)
+        // Le agregamos el signo de interrogación al Bundle? para quitar la advertencia
+        protected override void OnCreate(Bundle? savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
             
-            // 1. Inicializar la librería para que el celular permita pedir ubicación
             Xamarin.Essentials.Platform.Init(this, savedInstanceState);
-
-            // 2. Conectar nuestra clase nativa al "puente" de la vista principal
             AppChofer.Views.MainView.LeerGpsCelular = new GpsRealAndroid().ObtenerUbicacionActualAsync;
         }
 
-        // 3. Este método es obligatorio para que Android procese la respuesta de "¿Permitir acceso a la ubicación?"
-        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Android.Content.PM.Permission[] grantResults)
+        // Quitamos la palabra "Android." antes de Permission para que no se confunda con tu proyecto
+        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Permission[] grantResults)
         {
             Xamarin.Essentials.Platform.OnRequestPermissionsResult(requestCode, permissions, grantResults);
             base.OnRequestPermissionsResult(requestCode, permissions, grantResults);

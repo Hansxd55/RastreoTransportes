@@ -10,11 +10,14 @@ using Avalonia.Threading;
 using Mapsui.Projections;
 using Mapsui.Layers;
 using Mapsui.Styles;
+using System.Linq;
 
 namespace AppChofer.Views
 {
     public partial class MainView : UserControl
     {
+        // ⚠️ RECUERDA CAMBIAR ESTO POR TU ENLACE ACTIVO DE NGROK ANTES DE COMPILAR
+        private readonly string _servidorUrl = "https://multiply-laurel-lip.ngrok-free.dev";
         private bool _enRuta = false;
         
         // Temporizador del Chofer 
@@ -29,22 +32,27 @@ namespace AppChofer.Views
         private PointFeature _pinTransporte;
 
         // Variable puente para ejecutar código de Android desde aquí
-public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { get; set; }
+        public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { get; set; }
 
         public MainView()
         {
             InitializeComponent();
             
+            // --- NUEVO: Pase VIP de Ngrok para el envío de coordenadas desde el celular ---
+            if (!_httpClient.DefaultRequestHeaders.Contains("ngrok-skip-browser-warning"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("ngrok-skip-browser-warning", "true");
+            }
+            
             // --- 1. CONFIGURACIÓN DEL MAPA ---
             MapaControl.Map = new Mapsui.Map();
-            MapaControl.Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
-            
+            MapaControl.Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer("AppChoferTransporte/1.0"));            
             var (x, y) = SphericalMercator.FromLonLat(-102.9839, 25.7543);
             var centroSanPedro = new Mapsui.MPoint(x, y);
             MapaControl.Map.Navigator.CenterOnAndZoomTo(centroSanPedro, 15);
             
             // Icono de camión reemplazando al punto verde
-           _pinTransporte = new PointFeature(new Mapsui.MPoint(x, y));
+            _pinTransporte = new PointFeature(new Mapsui.MPoint(x, y));
             
             // 1. Capa de sombra/borde exterior (Blanco)
             _pinTransporte.Styles.Add(new SymbolStyle 
@@ -79,28 +87,86 @@ public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { ge
 
         private async Task InicializarSignalRAsync()
         {
+            // --- NUEVO: Evitamos duplicar conexiones si ya existe ---
+            if (_hubConnection != null && _hubConnection.State != HubConnectionState.Disconnected)
+            {
+                return;
+            }
+
+            // 1. INICIALIZAMOS LA CONEXIÓN (CON PASE VIP Y BLINDAJE CONTRA CORTES)
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5000/rastreohub")
-                .WithAutomaticReconnect()
+                .WithUrl($"{_servidorUrl}/rastreohub", options =>
+                {
+                    options.Headers.Add("ngrok-skip-browser-warning", "true");
+                })
+                .WithAutomaticReconnect() 
                 .Build();
 
-            _hubConnection.On<UbicacionDto>("RecibirUbicacion", (ubicacion) =>
-            {
-                Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    var (nuevoX, nuevoY) = SphericalMercator.FromLonLat(ubicacion.Longitud, ubicacion.Latitud);
-                    _pinTransporte.Point.X = nuevoX;
-                    _pinTransporte.Point.Y = nuevoY;
-                    
-                    MapaControl.Refresh();
-                });
-            });
+            // Chivatos visuales para saber si Android nos corta la conexión
+            _hubConnection.Closed += async (error) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "Desconectado. Reconectando...");
+            _hubConnection.Reconnecting += async (error) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "Reconectando SignalR...");
+            _hubConnection.Reconnected += async (connectionId) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "¡Reconectado!");
 
+          // 2. RECIBIMOS LOS DATOS Y LOS SACAMOS MANUALMENTE
+            _hubConnection.On<object>("RecibirUbicacion", (datoCrudo) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        // 1. Sabemos que el dato llega como un elemento JSON
+                        var jsonElement = (System.Text.Json.JsonElement)datoCrudo;
+                        
+                        // 2. Extraemos los números a la fuerza buscando su nombre
+                        double latLlegada = jsonElement.GetProperty("latitud").GetDouble();
+                        double lonLlegada = jsonElement.GetProperty("longitud").GetDouble();
+
+                        // --- EL CHIVATO VISUAL ---
+                        TxtSubtitulo.Text = $"GPS LLEGANDO: {latLlegada}";
+                        
+                        var (nuevoX, nuevoY) = Mapsui.Projections.SphericalMercator.FromLonLat(lonLlegada, latLlegada);
+                        
+                        // Movemos el pin
+                        _pinTransporte.Point.X = nuevoX;
+                        _pinTransporte.Point.Y = nuevoY;
+                        
+                        // Centramos la cámara
+                        var nuevoCentro = new Mapsui.MPoint(nuevoX, nuevoY);
+                        MapaControl.Map.Navigator.CenterOn(nuevoCentro);
+                        
+                        // Avisamos a la capa de pines
+                        var capaPines = MapaControl.Map.Layers.FirstOrDefault(l => l.Name == "Transportes");
+                        if (capaPines != null)
+                        {
+                            capaPines.DataHasChanged(); 
+                        }
+                        
+                        // Refrescamos pantalla
+                        MapaControl.Refresh();
+                    }
+                    catch (Exception ex)
+                    {
+                        TxtSubtitulo.Text = $"Error Lectura: {ex.Message}";
+                    }
+                }, Avalonia.Threading.DispatcherPriority.Normal);
+            });
+            // 3. ENCENDEMOS EL MAPA
             try
             {
                 await _hubConnection.StartAsync();
+                
+                Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    TxtSubtitulo.Text = $"Estado: {_hubConnection.State}";
+                });
             }
-            catch (Exception) { }
+            catch (Exception ex)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    TxtSubtitulo.Text = $"Error red: {ex.Message}";
+                });
+            }
         }
 
         // --- 4. LÓGICA DE LAS PESTAÑAS (TABS) ---
@@ -131,7 +197,15 @@ public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { ge
             BtnTabChofer.Background = SolidColorBrush.Parse("Transparent");
             
             TxtTitulo.Text = "UNIDAD EN CAMINO";
-            TxtSubtitulo.Text = "Sigue tu ruta";
+            
+            // En lugar de tapar la pantalla con "Sigue tu ruta", mostramos el estado real
+            TxtSubtitulo.Text = _hubConnection != null ? $"Estado actual: {_hubConnection.State}" : "Iniciando red...";
+
+            // Si la conexión no existe o está desconectada, la iniciamos
+            if (_hubConnection == null || _hubConnection.State == HubConnectionState.Disconnected)
+            {
+                _ = InicializarSignalRAsync();
+            }
         }
 
         // --- 5. VALIDACIÓN DEL PIN DEL CHOFER ---
@@ -166,7 +240,7 @@ public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { ge
                 
                 // BLOQUEAR PESTAÑA DE USUARIO
                 BtnTabUsuario.IsEnabled = false;
-                BtnTabUsuario.Opacity = 0.3; // Lo hacemos semitransparente para que se vea "apagado"
+                BtnTabUsuario.Opacity = 0.3; 
             }
             else
             {
@@ -178,10 +252,11 @@ public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { ge
                 
                 // DESBLOQUEAR PESTAÑA DE USUARIO
                 BtnTabUsuario.IsEnabled = true;
-                BtnTabUsuario.Opacity = 1.0; // Le regresamos su color normal
+                BtnTabUsuario.Opacity = 1.0; 
             }
         }
-       private async void OnChoferTimerTick(object? sender, EventArgs e)
+
+        private async void OnChoferTimerTick(object? sender, EventArgs e)
         {
             double latParaEnviar = _latitudChofer;
             double lonParaEnviar = _longitudChofer;
@@ -224,12 +299,11 @@ public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { ge
 
             try
             {
-                // Enviar la coordenada a tu servidor local
-                var respuesta = await _httpClient.PostAsync("http://127.0.0.1:5000/api/coordenadas", contenido);
+                // USAMOS LA VARIABLE GLOBAL PARA ENVIAR EL DATO AL SERVIDOR
+                var respuesta = await _httpClient.PostAsync($"{_servidorUrl}/api/coordenadas", contenido);
                 
                 if (respuesta.IsSuccessStatusCode)
                 {
-                    // Te mostrará en pantalla si el dato viene de la antena real o del simulador de PC
                     string origen = usandoGpsReal ? "GPS CEL" : "SIMULADOR PC";
                     TxtGps.Text = $"[{origen}] OK: {latParaEnviar:F5}";
                 }
@@ -243,8 +317,13 @@ public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { ge
 
     public class UbicacionDto
     {
+        [System.Text.Json.Serialization.JsonPropertyName("unidad")]
         public string Unidad { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("latitud")]
         public double Latitud { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("longitud")]
         public double Longitud { get; set; }
     }
 }
