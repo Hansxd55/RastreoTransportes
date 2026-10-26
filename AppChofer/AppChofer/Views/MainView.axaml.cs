@@ -18,6 +18,7 @@ namespace AppChofer.Views
     {
         private readonly string _servidorUrl = "https://ibus-sanpedro-c4edf6dhdeg2adbx.northcentralus-01.azurewebsites.net";
         private bool _enRuta = false;
+        private bool _isDarkTheme;
         
         // Temporizador del Chofer 
         private DispatcherTimer _choferTimer;
@@ -36,6 +37,7 @@ namespace AppChofer.Views
         public MainView()
         {
             InitializeComponent();
+            ApplyTheme();
             
             // --- 1. CONFIGURACIÓN DEL MAPA ---
             MapaControl.Map = new Mapsui.Map();
@@ -76,6 +78,57 @@ namespace AppChofer.Views
 
             // --- 3. INICIALIZAR SIGNALR PARA EL PASAJERO ---
             _ = InicializarSignalRAsync();
+        }
+
+        private void OnThemeToggleClick(object? sender, RoutedEventArgs e)
+        {
+            _isDarkTheme = !_isDarkTheme;
+            ApplyTheme();
+        }
+
+        private void ApplyTheme()
+        {
+            var ink = _isDarkTheme ? "#E6EFEC" : "#20312E";
+            var muted = _isDarkTheme ? "#9EADA8" : "#6E7D79";
+            var surface = _isDarkTheme ? "#24322F" : "#FFFFFF";
+            var accent = _isDarkTheme ? "#6FC3AC" : "#267768";
+            var accentSoft = _isDarkTheme ? "#294B43" : "#FFFFFF";
+            var page = _isDarkTheme ? "#121B19" : "#EEF2EF";
+            var controlSurface = _isDarkTheme ? "#C7202D2A" : "#B8FFFFFF";
+            var cardSurface = _isDarkTheme ? "#D6202D2A" : "#C7FFFFFF";
+            var shadowBorder = _isDarkTheme ? "#805D706A" : "#1420312E";
+
+            RootShell.Background = SolidColorBrush.Parse(page);
+            RoleSwitch.Background = SolidColorBrush.Parse(controlSurface);
+            ThemeToggle.Background = SolidColorBrush.Parse(controlSurface);
+            ThemeToggle.BorderBrush = SolidColorBrush.Parse(shadowBorder);
+            ThemeIcon.Text = _isDarkTheme ? "☀" : "☾";
+            ThemeIcon.Foreground = SolidColorBrush.Parse(accent);
+
+            var choferSelected = PanelChofer.IsVisible;
+            BtnTabChofer.Background = SolidColorBrush.Parse(choferSelected ? accentSoft : "Transparent");
+            BtnTabChofer.Foreground = SolidColorBrush.Parse(choferSelected ? accent : muted);
+            BtnTabChofer.BorderBrush = SolidColorBrush.Parse(choferSelected ? shadowBorder : "Transparent");
+            BtnTabUsuario.Background = SolidColorBrush.Parse(choferSelected ? "Transparent" : accentSoft);
+            BtnTabUsuario.Foreground = SolidColorBrush.Parse(choferSelected ? muted : accent);
+            BtnTabUsuario.BorderBrush = SolidColorBrush.Parse(choferSelected ? "Transparent" : shadowBorder);
+
+            TxtTitulo.Foreground = SolidColorBrush.Parse(accent);
+            StatusCard.Background = SolidColorBrush.Parse(cardSurface);
+            TxtSubtitulo.Foreground = SolidColorBrush.Parse(accent);
+            PanelUsuario.Background = SolidColorBrush.Parse(surface);
+            PanelUsuario.BorderBrush = SolidColorBrush.Parse(_isDarkTheme ? "#805D706A" : "#FFE5ECE9");
+            PanelChofer.Background = SolidColorBrush.Parse(surface);
+            ChoferPanelTitle.Foreground = SolidColorBrush.Parse(muted);
+            GpsCard.Background = SolidColorBrush.Parse(controlSurface);
+            TxtGps.Foreground = SolidColorBrush.Parse(accent);
+            CapaPin.Background = SolidColorBrush.Parse(_isDarkTheme ? "#CC202D2A" : "#D6FFFFFF");
+            PinDescription.Foreground = SolidColorBrush.Parse(muted);
+            TxtBoxPin.Background = SolidColorBrush.Parse(controlSurface);
+            TxtBoxPin.Foreground = SolidColorBrush.Parse(ink);
+            TxtBoxPin.BorderBrush = SolidColorBrush.Parse(shadowBorder);
+            BtnVerificarPin.Background = SolidColorBrush.Parse(accent);
+            BtnRuta.Background = SolidColorBrush.Parse(_enRuta ? "#8B1E1E" : accent);
         }
 
         private async Task InicializarSignalRAsync()
@@ -176,6 +229,7 @@ namespace AppChofer.Views
             ContenidoChofer.IsVisible = false;
             TxtBoxPin.Text = "";
             TxtErrorPin.Text = "";
+            ApplyTheme();
         }
 
         private void OnTabUsuarioClick(object? sender, RoutedEventArgs e)
@@ -196,6 +250,8 @@ namespace AppChofer.Views
             {
                 _ = InicializarSignalRAsync();
             }
+
+            ApplyTheme();
         }
 
         // --- 5. VALIDACIÓN DEL PIN DEL CHOFER ---
@@ -244,6 +300,8 @@ namespace AppChofer.Views
                 BtnTabUsuario.IsEnabled = true;
                 BtnTabUsuario.Opacity = 1.0; 
             }
+
+            ApplyTheme();
         }
 
         private async void OnChoferTimerTick(object? sender, EventArgs e)
