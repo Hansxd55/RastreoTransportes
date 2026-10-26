@@ -16,8 +16,7 @@ namespace AppChofer.Views
 {
     public partial class MainView : UserControl
     {
-        // ⚠️ RECUERDA CAMBIAR ESTO POR TU ENLACE ACTIVO DE NGROK ANTES DE COMPILAR
-        private readonly string _servidorUrl = "https://multiply-laurel-lip.ngrok-free.dev";
+        private readonly string _servidorUrl = "https://ibus-sanpedro-c4edf6dhdeg2adbx.northcentralus-01.azurewebsites.net";
         private bool _enRuta = false;
         
         // Temporizador del Chofer 
@@ -37,12 +36,6 @@ namespace AppChofer.Views
         public MainView()
         {
             InitializeComponent();
-            
-            // --- NUEVO: Pase VIP de Ngrok para el envío de coordenadas desde el celular ---
-            if (!_httpClient.DefaultRequestHeaders.Contains("ngrok-skip-browser-warning"))
-            {
-                _httpClient.DefaultRequestHeaders.Add("ngrok-skip-browser-warning", "true");
-            }
             
             // --- 1. CONFIGURACIÓN DEL MAPA ---
             MapaControl.Map = new Mapsui.Map();
@@ -95,10 +88,7 @@ namespace AppChofer.Views
 
             // 1. INICIALIZAMOS LA CONEXIÓN (CON PASE VIP Y BLINDAJE CONTRA CORTES)
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl($"{_servidorUrl}/rastreohub", options =>
-                {
-                    options.Headers.Add("ngrok-skip-browser-warning", "true");
-                })
+                .WithUrl($"{_servidorUrl}/rastreohub")
                 .WithAutomaticReconnect() 
                 .Build();
 

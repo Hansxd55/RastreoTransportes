@@ -1,10 +1,17 @@
-@TransporteAPI_HostAddress = http://localhost:5173
+@TransporteAPI_HostAddress = https://ibus-sanpedro-c4edf6dhdeg2adbx.northcentralus-01.azurewebsites.net
 
-GET {{TransporteAPI_HostAddress}}/weatherforecast/
+GET {{TransporteAPI_HostAddress}}/api/coordenadas
 Accept: application/json
 
 ###
 
 ### Simular el envío de GPS del chofer 1
-POST http://localhost:5173/actualizar-ubicacion?idUnidad=1&latitud=25.7616&longitud=-102.9839
+POST {{TransporteAPI_HostAddress}}/api/coordenadas
+Content-Type: application/json
+
+{
+	"unidad": "Unidad-01",
+	"latitud": 25.7616,
+	"longitud": -102.9839
+}
 

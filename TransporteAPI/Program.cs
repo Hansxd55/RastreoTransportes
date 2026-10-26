@@ -2,7 +2,6 @@ using MySqlConnector;
 using Microsoft.AspNetCore.SignalR; 
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseUrls("http://localhost:5000");
 
 // 1. Encendemos el servicio de WebSockets (SignalR)
 builder.Services.AddSignalR();
