@@ -19,6 +19,12 @@ namespace AppChofer.Views
         private readonly string _servidorUrl = "https://ibus-sanpedro-c4edf6dhdeg2adbx.northcentralus-01.azurewebsites.net";
         private bool _enRuta = false;
         private bool _isDarkTheme;
+        private double _latitudTransporte;
+        private double _longitudTransporte;
+        private double _latitudUsuario;
+        private double _longitudUsuario;
+        private bool _hayUbicacionTransporte;
+        private bool _hayUbicacionUsuario;
         
         // Temporizador del Chofer 
         private DispatcherTimer _choferTimer;
@@ -30,6 +36,7 @@ namespace AppChofer.Views
 
         private static readonly HttpClient _httpClient = new HttpClient();
         private PointFeature _pinTransporte;
+        private PointFeature? _pinUsuario;
 
         // Variable puente para ejecutar código de Android desde aquí
         public static Func<Task<(double Latitud, double Longitud)?>> LeerGpsCelular { get; set; }
@@ -41,7 +48,9 @@ namespace AppChofer.Views
             
             // --- 1. CONFIGURACIÓN DEL MAPA ---
             MapaControl.Map = new Mapsui.Map();
-            MapaControl.Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer("AppChoferTransporte/1.0"));            
+            var capaMapa = Mapsui.Tiling.OpenStreetMap.CreateTileLayer("AppChoferTransporte/1.0");
+            capaMapa.Opacity = 0.82;
+            MapaControl.Map.Layers.Add(capaMapa);
             var (x, y) = SphericalMercator.FromLonLat(-102.9839, 25.7543);
             var centroSanPedro = new Mapsui.MPoint(x, y);
             MapaControl.Map.Navigator.CenterOnAndZoomTo(centroSanPedro, 15);
@@ -59,7 +68,7 @@ namespace AppChofer.Views
             // 2. Capa central de ubicación (Verde vivo)
             _pinTransporte.Styles.Add(new SymbolStyle 
             { 
-                Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.FromString("#10B981")), 
+                Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.FromString("#D97706")),
                 SymbolScale = 0.35 
             });
 
@@ -139,6 +148,8 @@ namespace AppChofer.Views
                 return;
             }
 
+            TxtSubtitulo.Text = "Conectando al servidor...";
+
             // 1. INICIALIZAMOS LA CONEXIÓN (CON PASE VIP Y BLINDAJE CONTRA CORTES)
             _hubConnection = new HubConnectionBuilder()
                 .WithUrl($"{_servidorUrl}/rastreohub")
@@ -146,9 +157,9 @@ namespace AppChofer.Views
                 .Build();
 
             // Chivatos visuales para saber si Android nos corta la conexión
-            _hubConnection.Closed += async (error) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "Desconectado. Reconectando...");
-            _hubConnection.Reconnecting += async (error) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "Reconectando SignalR...");
-            _hubConnection.Reconnected += async (connectionId) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "¡Reconectado!");
+            _hubConnection.Closed += async (error) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "Desconectado del servidor");
+            _hubConnection.Reconnecting += async (error) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "Reconectando al servidor...");
+            _hubConnection.Reconnected += async (connectionId) => await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => TxtSubtitulo.Text = "Conectado al servidor");
 
           // 2. RECIBIMOS LOS DATOS Y LOS SACAMOS MANUALMENTE
             _hubConnection.On<object>("RecibirUbicacion", (datoCrudo) =>
@@ -163,9 +174,14 @@ namespace AppChofer.Views
                         // 2. Extraemos los números a la fuerza buscando su nombre
                         double latLlegada = jsonElement.GetProperty("latitud").GetDouble();
                         double lonLlegada = jsonElement.GetProperty("longitud").GetDouble();
+                        _latitudTransporte = latLlegada;
+                        _longitudTransporte = lonLlegada;
+                        _hayUbicacionTransporte = true;
 
-                        // --- EL CHIVATO VISUAL ---
-                        TxtSubtitulo.Text = $"GPS LLEGANDO: {latLlegada}";
+                        if (PanelChofer.IsVisible && _enRuta)
+                        {
+                            TxtSubtitulo.Text = "GPS activado · transmitiendo ubicación";
+                        }
                         
                         var (nuevoX, nuevoY) = Mapsui.Projections.SphericalMercator.FromLonLat(lonLlegada, latLlegada);
                         
@@ -174,8 +190,7 @@ namespace AppChofer.Views
                         _pinTransporte.Point.Y = nuevoY;
                         
                         // Centramos la cámara
-                        var nuevoCentro = new Mapsui.MPoint(nuevoX, nuevoY);
-                        MapaControl.Map.Navigator.CenterOn(nuevoCentro);
+                        CentrarMapaEnUbicaciones(nuevoX, nuevoY);
                         
                         // Avisamos a la capa de pines
                         var capaPines = MapaControl.Map.Layers.FirstOrDefault(l => l.Name == "Transportes");
@@ -186,6 +201,7 @@ namespace AppChofer.Views
                         
                         // Refrescamos pantalla
                         MapaControl.Refresh();
+                        ActualizarDistancia();
                     }
                     catch (Exception ex)
                     {
@@ -200,14 +216,14 @@ namespace AppChofer.Views
                 
                 Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    TxtSubtitulo.Text = $"Estado: {_hubConnection.State}";
+                        TxtSubtitulo.Text = "Conectado al servidor";
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    TxtSubtitulo.Text = $"Error red: {ex.Message}";
+                    TxtSubtitulo.Text = "No se pudo conectar al servidor";
                 });
             }
         }
@@ -222,7 +238,7 @@ namespace AppChofer.Views
             BtnTabUsuario.Background = SolidColorBrush.Parse("Transparent");
             
             TxtTitulo.Text = "PANEL DE CONTROL";
-            TxtSubtitulo.Text = "Transmisión GPS";
+            TxtSubtitulo.Text = "GPS detenido · inicia la ruta para transmitir";
 
             // Reiniciamos la capa del PIN
             CapaPin.IsVisible = true;
@@ -243,7 +259,7 @@ namespace AppChofer.Views
             TxtTitulo.Text = "UNIDAD EN CAMINO";
             
             // En lugar de tapar la pantalla con "Sigue tu ruta", mostramos el estado real
-            TxtSubtitulo.Text = _hubConnection != null ? $"Estado actual: {_hubConnection.State}" : "Iniciando red...";
+            TxtSubtitulo.Text = ObtenerEstadoServidor();
 
             // Si la conexión no existe o está desconectada, la iniciamos
             if (_hubConnection == null || _hubConnection.State == HubConnectionState.Disconnected)
@@ -252,6 +268,149 @@ namespace AppChofer.Views
             }
 
             ApplyTheme();
+        }
+
+        private async void OnMiUbicacionClick(object? sender, RoutedEventArgs e)
+        {
+            BtnMiUbicacion.IsEnabled = false;
+            TxtDistancia.Text = "Obteniendo ubicación...";
+
+            try
+            {
+                (double Latitud, double Longitud)? coordenadas;
+                if (LeerGpsCelular == null)
+                {
+                    var latitudBase = _hayUbicacionTransporte ? _latitudTransporte : 25.7543;
+                    var longitudBase = _hayUbicacionTransporte ? _longitudTransporte : -102.9839;
+                    coordenadas = (latitudBase + 0.002, longitudBase);
+                }
+                else
+                {
+                    coordenadas = await LeerGpsCelular();
+                    if (coordenadas == null)
+                    {
+                        TxtDistancia.Text = "Sin señal GPS o permiso de ubicación";
+                        return;
+                    }
+
+                }
+
+                _latitudUsuario = coordenadas.Value.Latitud;
+                _longitudUsuario = coordenadas.Value.Longitud;
+                _hayUbicacionUsuario = true;
+
+                var (x, y) = SphericalMercator.FromLonLat(_longitudUsuario, _latitudUsuario);
+                if (_pinUsuario == null)
+                {
+                    _pinUsuario = new PointFeature(new Mapsui.MPoint(x, y));
+                    _pinUsuario.Styles.Add(new SymbolStyle
+                    {
+                        Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.White),
+                        SymbolScale = 0.5
+                    });
+                    _pinUsuario.Styles.Add(new SymbolStyle
+                    {
+                        Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.FromString("#10B981")),
+                        SymbolScale = 0.35
+                    });
+
+                    MapaControl.Map.Layers.Add(new MemoryLayer
+                    {
+                        Name = "Usuario",
+                        Features = new[] { _pinUsuario },
+                        Style = null
+                    });
+                }
+                else
+                {
+                    _pinUsuario.Point.X = x;
+                    _pinUsuario.Point.Y = y;
+                    MapaControl.Map.Layers.First(l => l.Name == "Usuario").DataHasChanged();
+                }
+
+                CentrarMapaEnUbicaciones();
+                MapaControl.Refresh();
+                ActualizarDistancia();
+            }
+            catch (Exception ex)
+            {
+                TxtDistancia.Text = $"No se pudo obtener tu ubicación: {ex.Message}";
+            }
+            finally
+            {
+                BtnMiUbicacion.IsEnabled = true;
+            }
+        }
+
+        private void ActualizarDistancia()
+        {
+            if (!_hayUbicacionUsuario)
+            {
+                TxtDistancia.Text = "Activa tu ubicación para ver la distancia";
+                return;
+            }
+
+            if (!_hayUbicacionTransporte)
+            {
+                TxtDistancia.Text = "Esperando ubicación del transporte...";
+                return;
+            }
+
+            var distanciaMetros = CalcularDistanciaMetros(
+                _latitudUsuario, _longitudUsuario, _latitudTransporte, _longitudTransporte);
+            TxtDistancia.Text = distanciaMetros >= 1000
+                ? $"Distancia al transporte: {distanciaMetros / 1000:F1} km"
+                : $"Distancia al transporte: {distanciaMetros:F0} m";
+        }
+
+        private string ObtenerEstadoServidor()
+        {
+            return _hubConnection?.State switch
+            {
+                HubConnectionState.Connected => "Conectado al servidor",
+                HubConnectionState.Connecting => "Conectando al servidor...",
+                HubConnectionState.Reconnecting => "Reconectando al servidor...",
+                _ => "Desconectado del servidor"
+            };
+        }
+
+        private void CentrarMapaEnUbicaciones(double? xTransporte = null, double? yTransporte = null)
+        {
+            if (_hayUbicacionUsuario && _hayUbicacionTransporte)
+            {
+                var (xUsuario, yUsuario) = SphericalMercator.FromLonLat(_longitudUsuario, _latitudUsuario);
+                var (xCalculado, yCalculado) = SphericalMercator.FromLonLat(_longitudTransporte, _latitudTransporte);
+                var xDestino = xTransporte ?? xCalculado;
+                var yDestino = yTransporte ?? yCalculado;
+                MapaControl.Map.Navigator.CenterOn(new Mapsui.MPoint((xUsuario + xDestino) / 2, (yUsuario + yDestino) / 2));
+                return;
+            }
+
+            if (_hayUbicacionUsuario)
+            {
+                var (xUsuario, yUsuario) = SphericalMercator.FromLonLat(_longitudUsuario, _latitudUsuario);
+                MapaControl.Map.Navigator.CenterOn(new Mapsui.MPoint(xUsuario, yUsuario));
+                return;
+            }
+
+            if (xTransporte.HasValue && yTransporte.HasValue)
+            {
+                MapaControl.Map.Navigator.CenterOn(new Mapsui.MPoint(xTransporte.Value, yTransporte.Value));
+            }
+        }
+
+        private static double CalcularDistanciaMetros(double latitudInicio, double longitudInicio, double latitudFin, double longitudFin)
+        {
+            const double radioTierraMetros = 6371000;
+            var latitudRadianes = Math.PI / 180;
+            var diferenciaLatitud = (latitudFin - latitudInicio) * latitudRadianes;
+            var diferenciaLongitud = (longitudFin - longitudInicio) * latitudRadianes;
+            var a = Math.Pow(Math.Sin(diferenciaLatitud / 2), 2)
+                    + Math.Cos(latitudInicio * latitudRadianes)
+                    * Math.Cos(latitudFin * latitudRadianes)
+                    * Math.Pow(Math.Sin(diferenciaLongitud / 2), 2);
+
+            return radioTierraMetros * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         }
 
         // --- 5. VALIDACIÓN DEL PIN DEL CHOFER ---
@@ -263,10 +422,13 @@ namespace AppChofer.Views
             {
                 CapaPin.IsVisible = false;
                 ContenidoChofer.IsVisible = true;
+                TxtGps.Text = "PIN correcto. Acceso habilitado.";
+                TxtGps.Foreground = SolidColorBrush.Parse("#16805D");
                 TxtErrorPin.Text = "";
             }
             else
             {
+                TxtErrorPin.Foreground = SolidColorBrush.Parse("#EF4444");
                 TxtErrorPin.Text = "PIN incorrecto. Intente de nuevo.";
             }
         }
@@ -293,6 +455,7 @@ namespace AppChofer.Views
                 // Termina la ruta
                 BtnRuta.Content = "INICIAR RUTA";
                 BtnRuta.Background = SolidColorBrush.Parse("#10B981");
+                TxtSubtitulo.Text = "GPS desactivado";
                 TxtGps.Text = "Ruta detenida. GPS inactivo.";
                 _choferTimer.Stop(); 
                 

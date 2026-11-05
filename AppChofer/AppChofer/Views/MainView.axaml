@@ -43,7 +43,7 @@
                 BoxShadow="0 4 8 0 #40000000">
             
             <TextBlock Name="TxtSubtitulo" 
-                       Text="Iniciando red..." 
+                       Text="Conectando al servidor..."
                        FontSize="14" 
                        FontWeight="SemiBold" 
                        Foreground="#267768" 
@@ -56,7 +56,34 @@
             
             <!-- VISTA 1: PASAJERO (Mapa Limpio) -->
             <Border Name="PanelUsuario" IsVisible="True" CornerRadius="25" ClipToBounds="True" Background="#FFFFFF" BorderBrush="#E5ECE9" BorderThickness="1" Height="420">
-                <mapsui:MapControl Name="MapaControl" />
+                <Grid>
+                    <mapsui:MapControl Name="MapaControl" />
+                    <Button Name="BtnMiUbicacion" Grid.Row="0" Content="⌖" Click="OnMiUbicacionClick"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12"
+                            Width="48" Height="48" Background="#FFFFFF" Foreground="#267768"
+                            BorderBrush="#E5ECE9" BorderThickness="1" CornerRadius="14"
+                            FontSize="26" ToolTip.Tip="Mostrar mi ubicación" />
+                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12"
+                            Background="#EFFFFFFF" CornerRadius="10" Padding="10,8">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Ellipse Width="10" Height="10" Fill="#10B981" VerticalAlignment="Center" />
+                                <TextBlock Text="Usuario" Foreground="#20312E" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Ellipse Width="10" Height="10" Fill="#D97706" VerticalAlignment="Center" />
+                                <TextBlock Text="Transporte" Foreground="#20312E" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                        <Border HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="12"
+                            Background="#F7FFFFFF" BorderBrush="#D7E0DC" BorderThickness="1"
+                            CornerRadius="12" Padding="14,10" BoxShadow="0 3 10 0 #50000000">
+                        <TextBlock Name="TxtDistancia" Text="Activa tu ubicación para ver la distancia"
+                               Foreground="#20312E" FontSize="12" FontWeight="SemiBold"
+                               TextAlignment="Center" TextWrapping="Wrap" MaxWidth="300" />
+                    </Border>
+                </Grid>
             </Border>
 
             <!-- VISTA 2: CHOFER -->
@@ -92,20 +119,20 @@
                     <!-- CAPA PROTECTORA DE ADVERTENCIA Y PIN -->
                     <Border Name="CapaPin" Background="#D6FFFFFF" CornerRadius="20" Padding="20" VerticalAlignment="Center">
                         <StackPanel Spacing="15" VerticalAlignment="Center">
-                            <TextBlock Text="🔒 ACCESO RESTRINGIDO" 
+                            <TextBlock Text="ACCESO DE CHOFER"
                                        Foreground="#EF4444" 
                                        FontWeight="Black" 
                                        FontSize="14" 
                                        HorizontalAlignment="Center"/>
                             
-                            <TextBlock Name="PinDescription" Text="Esta opción solo está disponible para el conductor del transporte, en caso de serlo ponga el pin que se le dió." 
+                            <TextBlock Name="PinDescription" Text="Ingresa el PIN asignado para habilitar el panel de ruta."
                                        Foreground="#6E7D79" 
                                        FontSize="12" 
                                        TextWrapping="Wrap" 
                                        TextAlignment="Center"/>
                             
                             <TextBox Name="TxtBoxPin" 
-                                     Watermark="Ingrese el PIN" 
+                                     Watermark="PIN de chofer"
                                      PasswordChar="*" 
                                      MaxLength="20"
                                      HorizontalContentAlignment="Center"
@@ -115,7 +142,7 @@
                                      CornerRadius="8"
                                      Padding="10"/>
                             
-                            <Button Name="BtnVerificarPin" Content="VERIFICAR PIN" 
+                            <Button Name="BtnVerificarPin" Content="ENTRAR AL PANEL"
                                     Click="OnVerificarPinClick"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"
