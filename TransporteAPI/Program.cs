@@ -68,13 +68,13 @@ app.MapGet("/api/coordenadas", async () =>
     }
 });
 
-// Dejamos tu endpoint GET intacto por si acaso
+
 app.MapGet("/api/coordenadas/ultima/{idUnidad}", async (int idUnidad) =>
 {
     return Results.Ok();
 });
 
-// Mapeamos la ruta del túnel de WebSockets
+
 app.MapHub<RastreoHub>("/rastreohub");
 
 app.Run();

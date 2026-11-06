@@ -125,8 +125,10 @@ namespace AppChofer.Views
             TxtTitulo.Foreground = SolidColorBrush.Parse(accent);
             StatusCard.Background = SolidColorBrush.Parse(cardSurface);
             TxtSubtitulo.Foreground = SolidColorBrush.Parse(accent);
-            PanelUsuario.Background = SolidColorBrush.Parse(surface);
-            PanelUsuario.BorderBrush = SolidColorBrush.Parse(_isDarkTheme ? "#805D706A" : "#FFE5ECE9");
+            BtnMiUbicacion.Background = SolidColorBrush.Parse(accent);
+            BtnMiUbicacion.Foreground = SolidColorBrush.Parse(surface);
+            MapaFrame.Background = SolidColorBrush.Parse(surface);
+            MapaFrame.BorderBrush = SolidColorBrush.Parse(_isDarkTheme ? "#805D706A" : "#FFE5ECE9");
             PanelChofer.Background = SolidColorBrush.Parse(surface);
             ChoferPanelTitle.Foreground = SolidColorBrush.Parse(muted);
             GpsCard.Background = SolidColorBrush.Parse(controlSurface);
@@ -382,7 +384,14 @@ namespace AppChofer.Views
                 var (xCalculado, yCalculado) = SphericalMercator.FromLonLat(_longitudTransporte, _latitudTransporte);
                 var xDestino = xTransporte ?? xCalculado;
                 var yDestino = yTransporte ?? yCalculado;
-                MapaControl.Map.Navigator.CenterOn(new Mapsui.MPoint((xUsuario + xDestino) / 2, (yUsuario + yDestino) / 2));
+                var margenX = Math.Max(Math.Abs(xDestino - xUsuario) * 0.2, 150);
+                var margenY = Math.Max(Math.Abs(yDestino - yUsuario) * 0.2, 150);
+                var limites = new Mapsui.MRect(
+                    Math.Min(xUsuario, xDestino) - margenX,
+                    Math.Min(yUsuario, yDestino) - margenY,
+                    Math.Max(xUsuario, xDestino) + margenX,
+                    Math.Max(yUsuario, yDestino) + margenY);
+                MapaControl.Map.Navigator.ZoomToBox(limites, Mapsui.MBoxFit.Fit);
                 return;
             }
 
