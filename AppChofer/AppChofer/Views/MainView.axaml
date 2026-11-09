@@ -77,7 +77,7 @@
 
         <!-- 2. TÍTULOS DINÁMICOS -->
         <StackPanel Grid.Row="1" Margin="20,15,20,10">
-            <TextBlock Name="TxtTitulo" Classes="theme-transition" Text="UNIDAD EN CAMINO" Foreground="#267768" FontWeight="Bold" FontSize="10" LetterSpacing="1.5"/>
+            <TextBlock Name="TxtTitulo" Classes="theme-transition" Text="UNIDAD EN CAMINO" IsVisible="False" Foreground="#267768" FontWeight="Bold" FontSize="10" LetterSpacing="1.5"/>
             <!-- Contenedor elegante para el estado del GPS -->
         <Border Name="StatusCard" Classes="theme-transition" Background="#C7FFFFFF" 
                 CornerRadius="10" 
